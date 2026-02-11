@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const documentSchema = new mongoose.Schema({
   filename: String,
@@ -182,4 +182,4 @@ userSchema.methods.verifyOTP = function(candidateOTP) {
   return { valid: true, message: 'OTP verified successfully' };
 };
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);

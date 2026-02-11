@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const paymentSchema = new mongoose.Schema({
   gig: {
@@ -68,9 +68,9 @@ paymentSchema.pre('save', function(next) {
 // Generate unique transaction ID
 paymentSchema.methods.generateTransactionId = function() {
   const timestamp = Date.now().toString();
-  const random = Math.random().toString(36).substr(2, 6);
+  const random = Math.random().toString(36).substring(2, 8);
   this.transactionId = `TXN${timestamp}${random}`.toUpperCase();
   return this.transactionId;
 };
 
-module.exports = mongoose.model('Payment', paymentSchema);
+export default mongoose.model('Payment', paymentSchema);
