@@ -285,8 +285,22 @@ npm run seed     # Seed database with initial data
 - **File Storage**: Cloud storage for uploads (AWS S3, etc.)
 - **Logging**: Comprehensive error and access logging
 
+### Render Deployment (Recommended)
+- **Platform**: Render.com for Node.js backends
+- **Service Type**: Web Service
+- **Build Command**: `npm install`
+- **Start Command**: `npm start`
+- **Port**: 5000 (Render automatically sets PORT env var)
+
+### Environment Variables for Render
+- `MONGO_URI` - MongoDB Atlas connection string
+- `JWT_SECRET` - Secure random string (min 32 chars)
+- `FRONTEND_URL` - Your frontend deployment URL
+- `NODE_ENV` - Set to `production`
+- `PORT` - Render sets this automatically
+
 ### Security Hardening
-- **HTTPS**: SSL/TLS encryption
+- **HTTPS**: SSL/TLS encryption (automatic on Render)
 - **CORS**: Proper cross-origin configuration
 - **Rate Limiting**: API abuse prevention
 - **Security Headers**: Helmet.js integration
