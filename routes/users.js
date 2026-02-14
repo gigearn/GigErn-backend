@@ -1,10 +1,10 @@
-const express = require('express');
-const { body, validationResult } = require('express-validator');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const User = require('../models/User');
-const { auth, authorize } = require('../middleware/auth');
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import User from '../models/User.js';
+import { auth, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 // Configure multer for file uploads
@@ -226,4 +226,4 @@ router.get('/workers/list', auth, authorize('store'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

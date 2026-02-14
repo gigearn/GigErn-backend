@@ -1,9 +1,9 @@
-const express = require('express');
-const { body, validationResult } = require('express-validator');
-const Gig = require('../models/Gig');
-const Payment = require('../models/Payment');
-const Notification = require('../models/Notification');
-const { auth, authorize } = require('../middleware/auth');
+import express from 'express';
+import { body, validationResult } from 'express-validator';
+import Gig from '../models/Gig.js';
+import Payment from '../models/Payment.js';
+import Notification from '../models/Notification.js';
+import { auth, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 // Create new gig (store only)
@@ -479,4 +479,4 @@ router.get('/my/gigs', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

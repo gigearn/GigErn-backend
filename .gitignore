@@ -98,3 +98,5 @@ Thumbs.db
 # Build files
 dist/
 build/
+
+seed-database.js

@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ['store', 'worker'],
+    enum: ['store', 'worker', 'admin', 'super_admin', 'verifier'],
     required: true
   },
   isVerified: {
@@ -96,6 +96,12 @@ const userSchema = new mongoose.Schema({
   businessAddress: {
     type: String
   },
+  pincode: {
+    type: String
+  },
+  city: {
+    type: String
+  },
   
   // Documents
   documents: {
@@ -143,12 +149,19 @@ userSchema.pre('save', async function(next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+  const self = this;
+  try {
+    return await bcrypt.compare(candidatePassword, self.password);
+  } catch (error) {
+    console.error('Password comparison error:', error);
+    return false;
+  }
 };
 
 // Generate OTP method
 userSchema.methods.generateOTP = function() {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  // Always use fixed OTP 123456
+  const otp = '123456';
   this.otp = {
     code: otp,
     expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes

@@ -1,8 +1,168 @@
-const express = require('express');
-const { body, validationResult } = require('express-validator');
-const User = require('../models/User');
-const { auth } = require('../middleware/auth');
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import { body, validationResult } from 'express-validator';
+import User from '../models/User.js';
+import { auth } from '../middleware/auth.js';
+import { comparePassword } from '../utils/passwordUtils.js';
 const router = express.Router();
+
+// Admin Login (Phone/OTP)
+router.post('/admin-login', [
+  body('phone')
+    .notEmpty()
+    .withMessage('Phone number is required'),
+  body('otp')
+    .notEmpty()
+    .withMessage('OTP is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { phone, otp } = req.body;
+
+    // Find admin user by phone
+    const user = await User.findOne({ phoneNumber: phone, userType: { $in: ['admin', 'verifier'] } });
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin credentials'
+      });
+    }
+
+    // For admin users, use fixed OTP for development
+    if (otp !== '123456') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, userType: user.userType },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Admin login successful',
+      data: {
+        token,
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          phoneNumber: user.phoneNumber,
+          email: user.email,
+          userType: user.userType,
+          role: user.userType, // Add role field for frontend compatibility
+          isVerified: user.isVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          rating: user.rating,
+          profileImage: user.profileImage
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin login failed'
+    });
+  }
+});
+
+// Traditional Login (Email/Password)
+router.post('/login', [
+  body('email')
+    .isEmail()
+    .withMessage('Valid email is required')
+    .normalizeEmail(),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array()
+      });
+    }
+
+    const { email, password } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Check password
+    const isPasswordValid = await comparePassword(password, user.password);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, userType: user.userType },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        token,
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          phoneNumber: user.phoneNumber,
+          email: user.email,
+          userType: user.userType,
+          isVerified: user.isVerified,
+          isPhoneVerified: user.isPhoneVerified,
+          rating: user.rating,
+          profileImage: user.profileImage
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
+    });
+  }
+});
 
 // Send OTP
 router.post('/send-otp', [
@@ -162,7 +322,28 @@ router.post('/register', [
     .withMessage('User type must be either store or worker'),
   body('password')
     .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
+    .withMessage('Password must be at least 6 characters long'),
+  // Store specific validations
+  body('storeName')
+    .optional()
+    .notEmpty()
+    .withMessage('Store name is required for store users'),
+  body('address')
+    .optional()
+    .notEmpty()
+    .withMessage('Address is required for store users'),
+  body('pincode')
+    .optional()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('Pincode must be 6 digits'),
+  body('city')
+    .optional()
+    .notEmpty()
+    .withMessage('City is required for gig workers'),
+  body('vehicleNumber')
+    .optional()
+    .notEmpty()
+    .withMessage('Vehicle number is required for gig workers')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -174,8 +355,23 @@ router.post('/register', [
       });
     }
 
-    const { fullName, phoneNumber, email, userType, password, ...additionalFields } = req.body;
+    const { fullName, phoneNumber, email, userType, password, storeName, address, pincode, city, vehicleNumber, ...additionalFields } = req.body;
     const cleanedPhone = phoneNumber.replace(/\D/g, '');
+
+    // Map frontend field names to backend schema
+    const mappedData = {
+      fullName,
+      phoneNumber: cleanedPhone,
+      email,
+      userType,
+      password,
+      businessName: storeName,
+      businessAddress: address,
+      pincode,
+      city,
+      vehicleNumber,
+      ...additionalFields
+    };
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -190,16 +386,7 @@ router.post('/register', [
     }
 
     // Create new user
-    const userData = {
-      fullName,
-      phoneNumber: cleanedPhone,
-      email,
-      userType,
-      password,
-      ...additionalFields
-    };
-
-    const user = new User(userData);
+    const user = new User(mappedData);
     await user.save();
 
     // Generate OTP for phone verification
@@ -220,9 +407,12 @@ router.post('/register', [
     });
   } catch (error) {
     console.error('Registration error:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Registration failed'
+      message: 'Registration failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -254,4 +444,4 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
